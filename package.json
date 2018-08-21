@@ -1,0 +1,22 @@
+{
+  "name": "uc2-server-start-utils",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/osyed/uc2-server-start-utils.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/osyed/uc2-server-start-utils/issues"
+  },
+  "homepage": "https://github.com/osyed/uc2-server-start-utils#readme",
+  "dependencies": {
+    "request": "^2.88.0"
+  }
+}
