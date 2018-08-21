@@ -75,7 +75,7 @@ async function stopPort (port) {
   let server = runningServers.find(server => server.port === port)
   if (server) {
     try {
-      await request({method: 'POST', url: `http://${localAddr}:${port}/reset`})
+      await request({method: 'POST', url: `http://${localAddr}:${port}/stop`})
       await server.kill()
       console.log(`Stopped server  on port ${port}`)
     } catch (e) {
