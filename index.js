@@ -72,11 +72,13 @@ async function restartPort (port) {
 }
 
 async function stopPort (port) {
-  let server = runningServers.find(server => server.port === port)
+	let i = runningServers.findIndex(server => server.port === port)
+  let server = runningServers[i]
   if (server) {
     try {
       await request({method: 'POST', url: `http://${localAddr}:${port}/stop`})
       await server.kill()
+      runningServers.splice(i, 1)
       console.log(`Stopped server  on port ${port}`)
     } catch (e) {
       console.log(`Failed to reset server on port ${port}`)
@@ -107,6 +109,7 @@ async function stopAll () {
     await request({method: 'POST', url: `http://${localAddr}:${runningServers[i].port}/stop`})
     runningServers[i].kill()
   }
+  runningServers = []
   console.log('All servers stoped...')
 }
 
