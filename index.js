@@ -26,7 +26,6 @@ async function startServer (port) {
     })
   }
   await sleep(100)
-  await serverIsListening(port)
   console.log(`Server on port [${port}] is up!`)
   return server
 }
@@ -37,10 +36,21 @@ async function startServers (initialPort, num, debug = false) {
   pipeStdout = process.env.DEBUG || debug
   let server
   for (let i = 0; i < num; i++) {
+    d1 = Date.now()
     server = await startServer(initialPort++)
+    d2 = Date.now()
+    console.log(`Server ${initialPort-1} has taken ${d2-d1} to comes up`)
     runningServers.push(server)
   }
-  await sleep(3000)
+  await sleep(3500)
+  // checking if the servers were started correctly
+  for (let i = 0; i < runningServers.length; i++) {
+    try {
+      await getJson(`http://${localAddr}:${runningServers[i].port}/nodes`)
+    } catch (e) {
+      throw new Error('Some servers did not start correctly')
+    }
+  }
   return runningServers
 }
 
@@ -119,7 +129,6 @@ async function sleep (ms = 0) {
 
 async function serverIsListening (port) {
   for (let i = 0; i < 30; i++) {
-    await sleep(50)
     try {
       await getJson(`http://${localAddr}:${port}/nodes`)
       return true
