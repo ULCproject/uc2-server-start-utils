@@ -15,6 +15,7 @@ async function startServer (port) {
       server = spawn(binaryPath, [port, localAddr])
     } else {
       server = spawn('node', ['./server.js', port, localAddr])
+      runningServers.push(server)
     }
   } catch (e) {
     throw new Error(e)
@@ -82,7 +83,7 @@ async function restartPort (port) {
 }
 
 async function stopPort (port) {
-	let i = runningServers.findIndex(server => server.port === port)
+  let i = runningServers.findIndex(server => server.port === port)
   let server = runningServers[i]
   if (server) {
     try {
@@ -93,6 +94,8 @@ async function stopPort (port) {
     } catch (e) {
       console.log(`Failed to reset server on port ${port}`)
     }
+  } else {
+    console.log(`Could not find server on port ${port}`)
   }
   await sleep(100)
 }
