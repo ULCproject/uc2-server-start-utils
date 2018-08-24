@@ -6,11 +6,11 @@ Provides a library to simplify starting UC2 servers for testing.
 startServer(port)                                                    //starts one node ate the given port
 startServers(initialPort, numberOfServers)  //starts <numberOfServer> nodes starting from the port <initialPort>
 resetAll()                                                                 // Resets all nodes
-resetPort(port)                                                // Resets the <port> node
+resetOnPort(port)                                                // Resets the <port> node
 stopAll()                                                                  // Stops all nodes (kills the process)
-stopPort()                                                         // Stops the <port> node (kills it)
+stopOnPort()                                                         // Stops the <port> node (kills it)
 restartAll(initialPort, numberOfServers)      // Kills all the nodes and start them again
-restartPort(port)                                             // Kills and start again the <port> server
+restartOnPort(port)                                             // Kills and start again the <port> server
 ```
 
 If you have the `SERVER_BIN` env variable configured, it'll run that binary, otherwise it'll look for your `server.js`.
