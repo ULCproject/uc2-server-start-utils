@@ -41,7 +41,6 @@ async function startServers (initialPort, num, debug = false) {
     server = await startServer(initialPort++)
     d2 = Date.now()
     console.log(`Server ${initialPort-1} has taken ${d2-d1} to comes up`)
-    runningServers.push(server)
   }
   await sleep(3500)
   // checking if the servers were started correctly
@@ -71,14 +70,11 @@ async function restartPort (port) {
   let server = runningServers.find(server => server.port === port)
   if (server) {
     await stopPort(port)
-    runningServers.splice(runningServers.indexOf(server), 1)
     server = await startServer(port)
     server.port = port
-    runningServers.push(server)
     console.log(`Restart server on port ${port}`)
   } else {
     server = await startServer(port)
-    runningServers.push(server)
   }
 }
 
