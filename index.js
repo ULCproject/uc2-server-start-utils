@@ -3,150 +3,164 @@ const { promisify } = require('util')
 const request = promisify(require('request'))
 const { spawn } = require('child_process')
 
-const binaryPath = process.env.SERVER_BIN
-const localAddr = '127.0.0.1'
-let pipeStdout = false
+const BINARY_PATH = process.env.SERVER_BIN
+const LOCAL_ADDRESS = '127.0.0.1'
+const NODE_UP_TIMEOUT = 5000 // how long to wait for nodes to stand up
+
 let runningServers = []
 
-async function startServer (port) {
-  let server
-  try {
-    if (binaryPath) {
-      server = spawn(binaryPath, [port, localAddr])
-    } else {
-      server = spawn('node', ['./server.js', port, localAddr])
-      runningServers.push(server)
-    }
-  } catch (e) {
-    throw new Error(e)
-  }
-  server.port = port
-  if (pipeStdout) {
-    server.stdout.on('data', (chunck) => {
-      console.log(`[port ${port} stdout:] ${chunck.toString()}`)
-    })
-  }
-  await sleep(100)
-  console.log(`Server on port [${port}] is up!`)
-  return server
-}
-
-async function startServers (initialPort, num, debug = false) {
-  initialPort = Number(initialPort)
-  console.log(`Starting ${num} nodes from port ${initialPort}...`)
-  pipeStdout = process.env.DEBUG || debug
-  let server
-  for (let i = 0; i < num; i++) {
-    d1 = Date.now()
-    server = await startServer(initialPort++)
-    d2 = Date.now()
-    console.log(`Server ${initialPort-1} has taken ${d2-d1} to comes up`)
-  }
-  await sleep(3500)
-  // checking if the servers were started correctly
-  for (let i = 0; i < runningServers.length; i++) {
-    try {
-      await getJson(`http://${localAddr}:${runningServers[i].port}/nodes`)
-    } catch (e) {
-      throw new Error('Some servers did not start correctly')
-    }
-  }
-  return runningServers
-}
-
-async function resetPort (port) {
-  let server = runningServers.find(server => server.port === port)
-  if (server) {
-    try {
-      await request({method: 'POST', url: `http://${localAddr}:${port}/reset`})
-      console.log(`Reset server on port ${port}`)
-    } catch (e) {
-      console.log(`Failed to reset server on port ${port}`)
-    }
-  }
-}
-
-async function restartPort (port) {
-  let server = runningServers.find(server => server.port === port)
-  if (server) {
-    await stopPort(port)
-    server = await startServer(port)
-    server.port = port
-    console.log(`Restart server on port ${port}`)
-  } else {
-    server = await startServer(port)
-  }
-}
-
-async function stopPort (port) {
-  let i = runningServers.findIndex(server => server.port === port)
-  let server = runningServers[i]
-  if (server) {
-    try {
-      await request({method: 'POST', url: `http://${localAddr}:${port}/stop`})
-      await server.kill()
-      runningServers.splice(i, 1)
-      console.log(`Stopped server  on port ${port}`)
-    } catch (e) {
-      console.log(`Failed to reset server on port ${port}`)
-    }
-  } else {
-    console.log(`Could not find server on port ${port}`)
-  }
-  await sleep(100)
-}
-
-async function resetAll () {
-  console.log('Reseting all servers...')
-  let requestAll = []
-  for (let i = 0; i < runningServers.length; i++) {
-    requestAll.push(request({method: 'POST', url: `http://${localAddr}:${runningServers[i].port}/reset`}))
-  }
-  await Promise.all(requestAll)
-  console.log('All servers reset!')
-}
-
-async function restartAll (initialPort, num, debug = false) {
-  await stopAll()
-  runningServers = []
-  await startServers(initialPort, num, debug)
-}
-
-async function stopAll () {
-  console.log('Stopping all servers...')
-  for (let i = 0; i < runningServers.length; i++) {
-    await request({method: 'POST', url: `http://${localAddr}:${runningServers[i].port}/stop`})
-    runningServers[i].kill()
-  }
-  runningServers = []
-  console.log('All servers stoped...')
+function getJson (host) {
+  return request({ method: 'GET', url: host, json: true })
 }
 
 async function sleep (ms = 0) {
   return new Promise(resolve => setTimeout(resolve, ms))
 }
 
-async function serverIsListening (port) {
-  for (let i = 0; i < 30; i++) {
-    try {
-      await getJson(`http://${localAddr}:${port}/nodes`)
-      return true
-    } catch (e) {
-      console.log('e.message: ' + e.message)
-      // request failed, wait for server to be ready
+// this will hold up flow control until the host either
+// makes a successful fetch (if available is set to true) or
+// a failed fetch (if available is set to false). Once
+// the condition is met, it returns either true if it was a success,
+// or false if it timed out.
+const awaitCondition = async (host, available = true) => {
+  const startTime = new Date().valueOf()
+
+  let success = true
+
+  while (true) {
+    if (new Date().valueOf() - startTime > NODE_UP_TIMEOUT) {
+      // The condition timed out
+      success = false
+      break
     }
+
+    // try the condition
+    try {
+      await getJson(host)
+      if (available) break
+    } catch (e) {
+      if (!available) break
+    }
+
+    // arbitrary number, minimally relevant. How long between polls.
+    await sleep(500)
   }
+
+  return success
 }
 
-function getJson (host) {
-  return request({ method: 'GET', url: host, json: true })
+async function startServer (port, debug = false) {
+  let server
+
+  if (BINARY_PATH) server = spawn(BINARY_PATH, [port, LOCAL_ADDRESS])
+  else             server = spawn('node', ['./server.js', port, LOCAL_ADDRESS])
+
+  const success = await awaitCondition(`http://${LOCAL_ADDRESS}:${port}/nodes`)
+
+  if (!success) throw new Error(`Server at port ${port} failed to start.`)
+
+  server.port = port
+
+  if (debug) {
+    server.stdout.on('data', (chunck) => {
+      console.log(`[port ${port} stdout:] ${chunck.toString()}`)
+    })
+  }
+
+  runningServers.push(server)
+
+  console.log('Successfully started server on port', port)
+
+  return server
 }
 
+async function startServers (initialPort, num, debug = false) {
+  initialPort = Number(initialPort)
+
+  console.log(`Starting ${num} nodes from port ${initialPort}...`)
+
+  for (let i = 0; i < num; i++) {
+    await startServer(initialPort + i, debug)
+  }
+
+  return runningServers
+}
+
+async function restartOnPort (port, debug = false) {
+  let server = runningServers.find(server => server.port === port)
+
+  if (!server) return server = await startServer(port, debug)
+
+  await stopOnPort(port)
+  server = await startServer(port, debug)
+
+  console.log(`Restart server on port ${port}`)
+}
+
+async function stopOnPort (port) {
+  const serverIndex = runningServers.findIndex(server => server.port === port)
+
+  const server = runningServers[serverIndex]
+
+  if (!server) return console.log(`Could not find server on port ${port}`)
+
+  server.kill()
+
+  const success = await awaitCondition(`http://${LOCAL_ADDRESS}:${port}/nodes`, false)
+
+  if (!success) throw new Error(`Failed to stop server on port ${port}`)
+
+  runningServers.splice(serverIndex, 1)
+
+  console.log('Stopped server on port', port)
+}
+
+async function resetOnPort (port) {
+  let server = runningServers.find(server => server.port === port)
+
+  if (!server) return
+
+  await request({method: 'POST', url: `http://${LOCAL_ADDRESS}:${port}/reset`})
+    .then(() => console.log(`Reset server on port ${port}`))
+    .catch(() => console.log(`Failed to reset server on port ${port}`))
+}
+
+async function resetAll () {
+  console.log('Reseting all servers...')
+
+  const requestAll = runningServers.map(server => resetOnPort(server.port))
+
+  await Promise.all(requestAll)
+
+  console.log('All servers reset!')
+}
+
+async function restartServer (server, debug = false) {
+  await stopOnPort(server.port)
+  await startServer(server.port, debug)
+}
+
+async function restartAll (debug = false) {
+  const promises = runningServers.map(server => restartServer(server))
+  await Promise.all(promises)
+}
+
+async function stopAll () {
+  console.log('Stopping all servers...')
+
+  const promises = runningServers.map(server => stopOnPort(server.port))
+
+  await Promise.all(promises)
+
+  runningServers = []
+}
+
+exports.runningServers = runningServers
 exports.startServer = startServer
 exports.startServers = startServers
 exports.resetAll = resetAll
-exports.resetOnPort = resetPort
+exports.resetOnPort = resetOnPort
 exports.stopAll = stopAll
-exports.stopOnPort = stopPort
+exports.stopOnPort = stopOnPort
 exports.restartAll = restartAll
-exports.restartOnPort = restartPort
+exports.restartOnPort = restartOnPort
