@@ -93,6 +93,8 @@ async function startServers (initialPort, num, debug = false) {
     console.log(e)
   }
 
+  await sleep(3500)
+
   return runningServers
 }
 
