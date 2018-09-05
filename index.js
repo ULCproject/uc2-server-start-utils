@@ -69,6 +69,8 @@ async function startServer (port, debug = false) {
 
   runningServers.push(server)
 
+  await sleep(3500)
+
   console.log('Successfully started server on port', port)
 
   return server
