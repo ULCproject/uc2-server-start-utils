@@ -79,9 +79,21 @@ async function startServers (initialPort, num, debug = false) {
 
   console.log(`Starting ${num} nodes from port ${initialPort}...`)
 
-  for (let i = 0; i < num; i++) {
-    await startServer(initialPort + i, debug)
+  await startServer(initialPort, debug)
+
+  let promises = []
+
+  for (let i = 1; i < num; i++) {
+    promises.push(startServer(initialPort + i, debug))
   }
+
+  try {
+    await Promise.all(promises)
+  } catch (e) {
+    console.log(e)
+  }
+
+  await sleep(3500)
 
   return runningServers
 }
