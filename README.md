@@ -4,7 +4,7 @@ Provides a library to simplify starting UC2 servers for testing.
 
 ```JS
 startServer(port)                                                    //starts one node ate the given port
-startServers(initialPort, numberOfServers)  //starts <numberOfServer> nodes starting from the port <initialPort>
+startServers(initialPort, numberOfServers, waitTime)  //starts <numberOfServer> nodes starting from the port <initialPort>, waitTime in ms
 resetAll()                                                                 // Resets all nodes
 resetOnPort(port)                                                // Resets the <port> node
 stopAll()                                                                  // Stops all nodes (kills the process)
