@@ -74,7 +74,7 @@ async function startServer (port, debug = false) {
   return server
 }
 
-async function startServers (initialPort, num, debug = false) {
+async function startServers (initialPort, num, waitTime = 3500, debug = false) {
   initialPort = Number(initialPort)
 
   console.log(`Starting ${num} nodes from port ${initialPort}...`)
@@ -93,7 +93,7 @@ async function startServers (initialPort, num, debug = false) {
     console.log(e)
   }
 
-  await sleep(3500)
+  await sleep(waitTime)
 
   return runningServers
 }
